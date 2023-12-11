@@ -38,8 +38,8 @@ def find_row_and_col_inter(positions, positions_pbc, d_min_inter, d_max_inter):
     """
 
     z = positions[:, 2]
-    layer1 = z < c0 / 2
-    layer2 = z > c0 / 2
+    layer2 = z < -c0 / 2
+    layer1 = z > -c0 / 2
     
     row1, col1 = [], []
 

@@ -33,7 +33,7 @@ def uniform_strain(c_x, c_y):
     return displacement, strained_hopping
 
 
-c_x = 0.05  #zz
+c_x = 0.01  #zz
 c_y = 0  #ac
 
 a1, a2 = bilayer_4atom().vectors[0] * (1 + c_x), bilayer_4atom().vectors[1] * (1 + c_y)
@@ -52,7 +52,7 @@ strained_model = pb.Model(
     unit_cell(l1= 2 * times_l1 * a1, l2= 2 * times_l1 * a2),
     pb.translational_symmetry(a1=l1_size, a2=l2_size),  # always needs some overlap with the rectangle
     uniform_strain(c_x, c_y),
-    four_atom_gating_term(0.5)
+    #four_atom_gating_term(0.5)
 )
 
 position = strained_model.system.xyz
@@ -100,20 +100,23 @@ ldos_map_2.plot(ax=ax2)
 
 
 # dispersion/band structure 2D/3D
-bands = solver.calc_wavefunction(3, -3, step=0.04).bands_disentangled
+#bands = solver.calc_wavefunction(3, -3, step=0.04).bands_disentangled
+bands = solver.calc_bands(3, -3, step=0.04)
+
 fig, ax = plt.subplots()
-#for e in range(0, bands.num_bands):
- #   plt.scatter(bands.k_path, bands.energy[:, e], s=1, color = 'g') # methode to make much nicer looking plot or plot bands
-  #  plt.ylim([-3, 3])
-   # # independently
-#plt.show()
+for e in range(0, bands.num_bands):
+    plt.scatter(bands.k_path, bands.energy[:, e], s=1, color = 'g') # methode to make much nicer looking plot or plot bands
+    plt.ylim([-3, 3])
+    # independently
+plt.show()
 
-[ax.plot(bands.k_path.as_1d(), en) for en in bands.energy.T]
-kx = 5
-ky = 5
+#[ax.plot(bands.k_path.as_1d(), en) for en in bands.energy.T]
 
-kx_space = np.linspace(kx, -kx, 100)
-ky_space = np.linspace(ky, -ky, 100)
+#kx = 5
+#ky = 5
+
+#kx_space = np.linspace(kx, -kx, 100)
+#ky_space = np.linspace(ky, -ky, 100)
 
 #plt.figure()
 #draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)

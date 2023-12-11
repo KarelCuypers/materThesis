@@ -13,26 +13,26 @@ c_y = 0  #ac
 a1, a2 = bilayer_4atom().vectors[0] * (1 + c_x), bilayer_4atom().vectors[1] * (1 + c_y)
 a = graphene.a_cc * np.sqrt(3)
 a_cc = graphene.a_cc
+c0 = 0.335
 
 times_l1 = 10
 times_l2 = 10
 
-l1_size = times_l1 * np.linalg.norm(a1)
+l1_size = times_l1 * a1
 
-l2_size = times_l2 * np.linalg.norm(a2)
+l2_size = times_l2 * a2
 
 strained_model = pb.Model(
     bilayer_4atom(),
-    unit_cell(l1=2 * times_l1 * a1, l2=2 * times_l1 * a2),
-    pb.translational_symmetry(a1=l1_size, a2=l2_size),  # always needs some overlap with the rectangle
-    uniform_strain(c_x, c_y),
-    four_atom_gating_term(0.5)
+    unit_cell(l1=l1_size, l2=l2_size)
+    #uniform_strain(c_x, c_y),
 )
 
 position = strained_model.system.xyz
 
-path = '/bilayer_homo_strain/xyz_files/'
+path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/xyz_files/'
 name = 'uniform_strain_xyz_test'
 
-export_xyz(f'{path}{name}', position, l1_size * a1 / np.linalg.norm(a1), l2_size * a2 / np.linalg.norm(a2),
-           np.array([0, 0, 1]), ['A1'] * position.shape[0])
+export_xyz(f'{path}{name}', position, l1_size, l2_size, np.array([0, 0, -c0]), ['A1'] * position.shape[0])
+
+print("Done")

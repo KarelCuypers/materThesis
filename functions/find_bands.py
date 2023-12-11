@@ -3,13 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-load_path = 'C:/Users/Karel/Desktop/Master Thesis/pythonProject/bilayer_homo_strain/lattice_files/'
-save_path = 'C:/Users/Karel/Desktop/Master Thesis/pythonProject/bilayer_homo_strain/band_files/'
+load_path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/lattice_files/'
+save_path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/band_files/'
 name = 'uniform_strain_xyz_test.xyz'
 lattice = pb.load(f'{load_path}lattice_{name}')
+print('Done')
 
-model = pb.Model(lattice,
-                 pb.translational_symmetry())
+model = pb.Model(lattice, pb.translational_symmetry())
 solver = pb.solver.lapack(model)
 
 # dispersion/band structure 2D/3D
@@ -22,13 +22,15 @@ print('Done')
 
 # possible code for plotting a figure:
 
-#fig, ax = plt.subplots()
+calculated_bands = pb.load(f'{save_path}bands_{name}')
 
-#for e in range(0, bands.num_bands):
- #   plt.scatter(bands.k_path, bands.energy[:, e], s=1, color = 'g') # methode to make much nicer looking plot or plot bands
-  #  plt.ylim([-3, 3])
-   # # independently
-#plt.show()
+fig, ax = plt.subplots()
+
+for e in range(0, calculated_bands.num_bands):
+    plt.scatter(calculated_bands.k_path, calculated_bands.energy[:, e], s=1, color = 'g') # methode to make much nicer looking plot or plot bands
+    plt.ylim([-3, 3])
+    # independently
+plt.show()
 
 #[ax.plot(bands.k_path.as_1d(), en) for en in bands.energy.T]
 #kx = 5

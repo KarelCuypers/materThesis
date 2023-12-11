@@ -12,14 +12,14 @@ import numpy as np
 import sys
 
 from numpy import pi, sqrt
-from pybinding.repository import graphee
+from pybinding.repository import graphene
 from pybinding.repository.graphene import a, a_cc, t
 from concurrent import futures
 
 
 load_path = '/scratch/antwerpen/209/vsc20947/lattice_files/'
 save_path = '/scratch/antwerpen/209/vsc20947/band_files/'
-name = 'uniform_strain_xyz_test.xyz'
+name = 'uniform_strain_xyz_test.pbz'
 #name = str(sys.argv[1])
 
 complete_lattice = pb.load(f'{load_path}lattice_{name}')
