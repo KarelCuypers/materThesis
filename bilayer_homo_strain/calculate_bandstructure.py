@@ -17,19 +17,20 @@ from pybinding.repository.graphene import a, a_cc, t
 from concurrent import futures
 
 
-load_path = '/scratch/antwerpen/209/vsc20947/lattice_files/'
-save_path = '/scratch/antwerpen/209/vsc20947/band_files/'
-name = 'uniform_strain_xyz_test.pbz'
+#load_path = '/scratch/antwerpen/209/vsc20947/lattice_files/'
+load_path = ''
+#save_path = '/scratch/antwerpen/209/vsc20947/band_files/'
+save_path = ''
+name = 'bilayer4atom_no_strain'
 #name = str(sys.argv[1])
 
-complete_lattice = pb.load(f'{load_path}lattice_{name}')
+complete_lattice = pb.load(f'{load_path}lattice_{name}.pbz')
 savename = 'bands_' + name
 savename_wfc = 'wfc_' + name
 
 numbands = 30
 kstep = 0.001
 #sig = float(sys.argv[2])
-sig = 0
 
 c0 = 0.335
 
@@ -96,13 +97,15 @@ def determine_bands(ki):
     model = pb.Model(complete_lattice,
                      pb.translational_symmetry())
 
-    solver = pb.solver.arpack(model, k=numbands, sigma=sig)
+    #solver = pb.solver.arpack(model, k=numbands, sigma=1)
+    solver = pb.solver.arpack(model, k=numbands)
     solver.set_wave_vector(ki)
 
     return solver.eigenvalues, solver.eigenvectors.T
 
 mean_heights = get_mean_heights(z_coord)
 k_path = pb.make_path(gamma, K1, K2, gamma, step=kstep)
+#k_path = pb.make_path([-3, 0], [3, 0], step=kstep)
 bands, wfc = [], []
 idx = np.arange(0, len(k_path))
 
@@ -115,4 +118,4 @@ bands_object = pb.Bands(k_path, bands)
 #wfc_object = np.array(wfc)
 #bands_object = pb.Wavefunction(bands_object, wfc_object).bands_disentangled
 #pb.save(wfc_object, f"{savename_wfc}_{str(int(gating*1000))}_mev_r")
-pb.save(bands_object, f"{save_path}{savename}.pbz")
+pb.save(bands_object, f"{savename}.pbz")

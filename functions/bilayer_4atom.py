@@ -75,7 +75,7 @@ def bilayer_4atom(gamma3=False, gamma4=False, onsite=(0, 0, 0, 0)):
 
     if gamma3:
         lat.add_hoppings(
-            ([1, 0], 'A1', 'A1', 'gamma3'),
+            '''([1, 0], 'A1', 'A1', 'gamma3'),
             ([0, 0], 'A1', 'A3', 'gamma3'),
             ([-1, 0], 'A1', 'A3', 'gamma3'),
             ([-1, -1], 'A1', 'A3', 'gamma3'),
@@ -109,7 +109,7 @@ def bilayer_4atom(gamma3=False, gamma4=False, onsite=(0, 0, 0, 0)):
             ([1, 0], 'A2', 'A2', 'gamma3'),
             ([1, 0], 'B2', 'B2', 'gamma3'),
 
-            ([1, 1], 'B2', 'A1', 'gamma3')
+            ([1, 1], 'B2', 'A1', 'gamma3')'''
         )
 
     if gamma4:

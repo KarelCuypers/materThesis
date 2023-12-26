@@ -2,12 +2,12 @@ import pybinding as pb
 import numpy as np
 import matplotlib.pyplot as plt
 from pybinding.repository import graphene
-from bilayer_4atom import bilayer_4atom
+from functions.bilayer_4atom import bilayer_4atom
 from math import pi, sqrt
-from export_xyz import export_xyz
-from draw_contour import draw_contour
-from unit_cell import unit_cell
-from four_atom_gating_term import four_atom_gating_term
+from functions.export_xyz import export_xyz
+from functions.draw_contour import draw_contour
+from functions.unit_cell import unit_cell
+from functions.four_atom_gating_term import four_atom_gating_term
 
 
 def sinusoidal_strain(c, k, beta=3.37):

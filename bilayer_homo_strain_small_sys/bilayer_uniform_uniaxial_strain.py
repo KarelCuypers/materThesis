@@ -33,15 +33,15 @@ def uniform_strain(c_x, c_y):
     return displacement, strained_hopping
 
 
-c_x = 0.01  #zz
+c_x = 0.02  #zz
 c_y = 0  #ac
 
 a1, a2 = bilayer_4atom().vectors[0] * (1 + c_x), bilayer_4atom().vectors[1] * (1 + c_y)
 a = graphene.a_cc * sqrt(3)
 a_cc = graphene.a_cc
 
-times_l1 = 10
-times_l2 = 10
+times_l1 = 7
+times_l2 = 7
 
 l1_size = times_l1 * np.linalg.norm(a1)
 
@@ -63,7 +63,7 @@ strained_model.plot()
 strained_model.lattice.plot_vectors(position=[0, 0])  # nm
 plt.show()
 
-solver = pb.solver.lapack(strained_model)
+solver = pb.solver.arpack(strained_model, k=30)
 #solver = pb.solver.arpack(strained_model, 10, 0.)
 
 # density of states
@@ -120,7 +120,8 @@ plt.show()
 
 #plt.figure()
 #draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
-#full_lattice.plot_brillouin_zone(color = 'r')
+full_lattice.plot_brillouin_zone(color = 'r')
+plt.scatter(4*pi/(3*sqrt(3)), 0, s=25, color = 'y')
 
 export_xyz("uniform_strain_xyz", position, l1_size * a1 / np.linalg.norm(a1), l2_size * a2 / np.linalg.norm(a2),
            np.array([0, 0, 1]), ['c'] * position.shape[0])
