@@ -3,8 +3,11 @@ from functions.calculate_hoppings import *
 
 def create_lattice(name):
 
-    load_path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/xyz_files/'
-    save_path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/lattice_files/'
+    #load_path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/xyz_files/'
+    #save_path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/lattice_files/'
+
+    load_path = ''
+    save_path = ''
 
     # # load coordinates, atom types and lattice vectors
     x_coord, y_coord, z_coord, atom_type, l1, l2, l3 = load_ovito_lattice(f'{load_path}{name}.xyz')

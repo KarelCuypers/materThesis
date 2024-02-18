@@ -27,6 +27,16 @@ def draw_contour(solver, kx_space, ky_space, band_index, conduction=True):
     conduction_E = conduction_E.reshape(len(ky_space), len(kx_space))
     valence_E = valence_E.reshape(len(ky_space), len(kx_space))
 
+    '''plt.figure(dpi=100)
+    ax = plt.axes(projection='3d')
+    cmap = plt.get_cmap('coolwarm')
+    if conduction:
+        surf = ax.plot_surface(KX, KY, conduction_E, cmap=cmap)
+    else:
+        surf = ax.plot_surface(KX, KY, valence_E, cmap=cmap)
+    plt.colorbar(surf)
+    plt.show()'''
+
     plt.figure(dpi=100)
     cmap = plt.get_cmap('coolwarm')
     if conduction:

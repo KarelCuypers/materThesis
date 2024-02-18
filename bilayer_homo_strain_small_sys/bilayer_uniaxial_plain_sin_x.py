@@ -49,8 +49,8 @@ strained_model = pb.Model(
     bilayer_4atom(),
     unit_cell(l1=4 * times_l1 * a1, l2=4 * times_l1 * a2),
     pb.translational_symmetry(a1=2*l1_size, a2=2*l2_size),  # always needs some overlap with the rectangle
-    sinusoidal_strain(0.08, k_x),
-    four_atom_gating_term(0.5)
+    sinusoidal_strain(0.05, k_x),
+    #four_atom_gating_term(0.5)
 )
 
 position = strained_model.system.xyz

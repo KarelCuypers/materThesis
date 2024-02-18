@@ -40,8 +40,8 @@ a1, a2 = bilayer_4atom().vectors[0] * (1 + c_x), bilayer_4atom().vectors[1] * (1
 a = graphene.a_cc * sqrt(3)
 a_cc = graphene.a_cc
 
-times_l1 = 7
-times_l2 = 7
+times_l1 = 1
+times_l2 = 1
 
 l1_size = times_l1 * np.linalg.norm(a1)
 
@@ -51,7 +51,7 @@ strained_model = pb.Model(
     bilayer_4atom(),
     unit_cell(l1= 2 * times_l1 * a1, l2= 2 * times_l1 * a2),
     pb.translational_symmetry(a1=l1_size, a2=l2_size),  # always needs some overlap with the rectangle
-    uniform_strain(c_x, c_y),
+    #uniform_strain(c_x, c_y),
     #four_atom_gating_term(0.5)
 )
 
