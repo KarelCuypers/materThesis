@@ -2,14 +2,67 @@ import pybinding as pb
 import numpy as np
 import matplotlib.pyplot as plt
 from pybinding.repository import graphene
-from functions.bilayer_4atom import bilayer_4atom
 from math import pi, sqrt
-from functions.export_xyz import export_xyz
-from functions.four_atom_gating_term import four_atom_gating_term
 from functions.draw_contour import draw_contour
+from functions.contour_dos import contour_dos
+
+def bilayer_rotated(gamma3=False, gamma4=False, onsite=(0, 0, 0, 0), angle=0):
+
+    rot = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    rot_3D = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+
+    lat = pb.Lattice(
+        a1=np.matmul([a/2, a/2 * sqrt(3)], rot),
+        a2=np.matmul([-a/2, a/2 * sqrt(3)], rot)
+    )
+
+    c0 = 0.335  # [nm] interlayer spacing
+    lat.add_sublattices(
+        ('A1', np.matmul([0,  -a_cc/2,   0], rot_3D), onsite[0]),
+        ('B1', np.matmul([0,   a_cc/2,   0], rot_3D), onsite[1]),
+        ('A2', np.matmul([0,   a_cc/2, -c0], rot_3D), onsite[2]),
+        ('B2', np.matmul([0, 3*a_cc/2, -c0], rot_3D), onsite[3])
+    )
+
+    lat.register_hopping_energies({
+        'gamma0': t,
+        'gamma1': -0.4,
+        'gamma3': -0.3,
+        'gamma4': -0.04
+    })
+
+    lat.add_hoppings(
+        # layer 1
+        ([ 0,  0], 'A1', 'B1', 'gamma0'),
+        ([ 0, -1], 'A1', 'B1', 'gamma0'),
+        ([-1,  0], 'A1', 'B1', 'gamma0'),
+        # layer 2
+        ([ 0,  0], 'A2', 'B2', 'gamma0'),
+        ([ 0, -1], 'A2', 'B2', 'gamma0'),
+        ([-1,  0], 'A2', 'B2', 'gamma0'),
+        # interlayer
+        ([ 0,  0], 'B1', 'A2', 'gamma1')
+    )
+
+    if gamma3:
+        lat.add_hoppings(
+            ([0, 1], 'B2', 'A1', 'gamma3'),
+            ([1, 0], 'B2', 'A1', 'gamma3'),
+            ([1, 1], 'B2', 'A1', 'gamma3')
+        )
+
+    if gamma4:
+        lat.add_hoppings(
+            ([0, 0], 'A2', 'A1', 'gamma4'),
+            ([0, 1], 'A2', 'A1', 'gamma4'),
+            ([1, 0], 'A2', 'A1', 'gamma4')
+        )
+
+    lat.min_neighbors = 2
+    return lat
 
 
-def uniform_strain(c_x, c_y, angle):
+def uniform_strain(c_x, c_y):
     """Produce both the displacement and hopping energy modifier"""
     @pb.site_position_modifier
     def displacement(x, y, z):
@@ -17,7 +70,7 @@ def uniform_strain(c_x, c_y, angle):
         uy = c_y * y
         uz = 0
 
-        return (x + ux)*np.cos(angle), (y + uy)*np.sin(angle), z + uz
+        return x + ux, y + uy, z + uz
 
     @pb.hopping_energy_modifier
     def strained_hopping(energy, x1, y1, z1, x2, y2, z2):
@@ -33,8 +86,11 @@ def uniform_strain(c_x, c_y, angle):
 
 
 # apply strain
-c_x = 0.08  #zz turn 60° = pi/3
-c_y = 0.08  #ac turn 90° = pi/2
+c_x = 0  # zz
+c_y = 0.08  # ac
+
+#angle = pi/3
+angle = 0
 
 # define constants
 a1, a2 = graphene.bilayer().vectors[0] * (1 + c_x), graphene.bilayer().vectors[1] * (1 + c_y)
@@ -43,9 +99,9 @@ a_cc = graphene.a_cc
 t = graphene.t
 
 strained_model = pb.Model(
-    graphene.bilayer(gamma3=True, gamma4=False, offset=[0.01, 0]), # effect with gamma3 or 4 significantly different
+    bilayer_rotated(gamma3=True, gamma4=True, angle=angle), # effect with gamma3 or 4 significantly different
     pb.translational_symmetry(),
-    uniform_strain(c_x, c_y, angle=pi/3)
+    uniform_strain(c_x, c_y)
 )
 
 position = strained_model.system.xyz
@@ -58,25 +114,34 @@ plt.show()
 solver = pb.solver.lapack(strained_model)
 
 # dispersion/band structure 2D/3D
-
 a_cc = graphene.a_cc
-Gamma = [0, 0]
-K1 = [-4*pi / (3*sqrt(3)*a_cc), 0] #K in paper
-M = [0, 2*pi / (3*a_cc)] #S in paper
-K2 = [2*pi / (3*sqrt(3)*a_cc), 2*pi / (3*a_cc)] #R in paper
 
+rot = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
 
-plt.figure()
+Gamma = np.matmul([0, 0], rot)
+K1 = np.matmul([-4*pi / (3*sqrt(3)*a_cc), 0], rot) # K in paper
+M = np.matmul([0, 2*pi / (3*a_cc)], rot) # S in paper
+K2 = np.matmul([2*pi / (3*sqrt(3)*a_cc), 2*pi / (3*a_cc)], rot) # R in paper
+
+'''plt.figure()
 bands = solver.calc_bands(Gamma, K1, K2, step=0.001)
 bands.plot(point_labels=[r'$\Gamma$', 'K1', 'K2'])
 plt.show()
 
 plt.figure()
-bands = solver.calc_bands(Gamma, K2, M, step=0.01)
+bands = solver.calc_bands(Gamma, K2, M, step=0.001)
 bands.plot(point_labels=[r'$\Gamma$', 'K2', 'M'])
 plt.show()
 
-bands = solver.calc_wavefunction(K1[0]-5, K1[0]+5, step=0.01).bands_disentangled
+plt.figure()
+start = [-4*pi / (3*sqrt(3)*a_cc)+10, 0]
+stop = [-4*pi / (3*sqrt(3)*a_cc)-10, 0]
+bands = solver.calc_bands(start, K1, stop, step=0.001)
+bands.plot(point_labels=['start', 'K1', 'stop'])
+plt.show()'''
+
+bands = solver.calc_wavefunction(K1[0]-5, K1[0]+5, step=0.001).bands_disentangled
+
 k_points = [bands.k_path[i][0] for i in range(0, len(bands.k_path))]
 fig, ax = plt.subplots()
 for e in range(0, bands.num_bands):
@@ -84,28 +149,113 @@ for e in range(0, bands.num_bands):
     plt.ylim([-1, 1])
     # independently
 plt.scatter(K1[0], K1[1], s=1, color='r')
+plt.scatter(K1[0] * (1-c_y), K1[1], s=1, color='r')
 plt.show()
 
-# K1 point 3D
-kx_max = K1[0]+5
-ky_max = K1[1]+5
-kx_min = K1[0]-5
-ky_min = K1[1]-5
+# For ac-strain
 
-kx_space = np.linspace(kx_max, kx_min, 100)
-ky_space = np.linspace(ky_max, ky_min, 100)
+'''# K1 point 3D
+kx_max = K1[0] + 0.15
+ky_max = K1[1] + 0.1
+kx_min = K1[0] - 0.1
+ky_min = K1[1] - 0.1
 
-draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
-
-# K2 point 3D
-kx_max = K2[0]+5
-ky_max = K2[1]+5
-kx_min = K2[0]-5
-ky_min = K2[1]-5
-
-kx_space = np.linspace(kx_max, kx_min, 100)
-ky_space = np.linspace(ky_max, ky_min, 100)
+kx_space = np.linspace(kx_max, kx_min, 250)
+ky_space = np.linspace(ky_max, ky_min, 250)
 
 draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
+plt.scatter(K1[0], K1[1], s=5, color='y')
+plt.show()
+
+# K1 close up
+kx_max = K1[0] + 0.02
+ky_max = K1[1] + 0.1
+kx_min = K1[0] - 0.05
+ky_min = K1[1] - 0.1
+
+kx_space = np.linspace(kx_max, kx_min, 250)
+ky_space = np.linspace(ky_max, ky_min, 250)
+
+draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
+plt.scatter(K1[0], K1[1], s=5, color='y')
+plt.show()
+
+# K1 wide 
+kx_max = K1[0] + 0.3
+ky_max = K1[1] + 0.3
+kx_min = K1[0] - 0.3
+ky_min = K1[1] - 0.3
+
+kx_space = np.linspace(kx_max, kx_min, 250)
+ky_space = np.linspace(ky_max, ky_min, 250)
+
+draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
+plt.scatter(K1[0], K1[1], s=5, color='y')
+plt.show()'''
+
+# for zz-strain
+
+'''# K1 point 3D
+kx_max = K1[0] + 0.1
+ky_max = K1[1] + 0.1
+kx_min = K1[0] - 0.15
+ky_min = K1[1] - 0.1
+
+kx_space = np.linspace(kx_max, kx_min, 250)
+ky_space = np.linspace(ky_max, ky_min, 250)
+
+draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
+plt.scatter(K1[0], K1[1], s=5, color='y')
+plt.show()
+
+# K1 close up
+kx_max = K1[0] + 0.02
+ky_max = K1[1] + 0.1
+kx_min = K1[0] - 0.08
+ky_min = K1[1] - 0.1
+
+kx_space = np.linspace(kx_max, kx_min, 250)
+ky_space = np.linspace(ky_max, ky_min, 250)
+
+draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
+plt.scatter(K1[0], K1[1], s=5, color='y')
+plt.show()
+
+# K1 wide
+kx_max = K1[0] + 0.3
+ky_max = K1[1] + 0.3
+kx_min = K1[0] - 0.3
+ky_min = K1[1] - 0.3
+
+kx_space = np.linspace(kx_max, kx_min, 250)
+ky_space = np.linspace(ky_max, ky_min, 250)
+
+draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
+plt.scatter(K1[0], K1[1], s=5, color='y')
+plt.show()'''
+
+kx_max = K1[0] + 5
+ky_max = K1[1] + 5
+kx_min = K1[0] - 5
+ky_min = K1[1] - 5
+
+kx_space = np.linspace(kx_max, kx_min, 250)
+ky_space = np.linspace(ky_max, ky_min, 250)
+
+draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True)
+plt.scatter(K1[0], K1[1], s=5, color='y')
+plt.show()
+
+# dos fig
+
+kx_max = K1[0] + 0.05
+ky_max = K1[1] + 0.05
+kx_min = K1[0] - 0.05
+ky_min = K1[1] - 0.05
+
+kx_space = np.linspace(kx_max, kx_min, 500)
+ky_space = np.linspace(ky_max, ky_min, 500)
+
+test = draw_contour(solver, kx_space, ky_space, round(len(bands.energy[0, :])/2), True, dos_fig=True)
 
 #export_xyz("uniform_strain_xyz", position, a1, a2, np.array([0, 0, 1]), ['c'] * position.shape[0])
