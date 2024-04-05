@@ -25,4 +25,9 @@ def calculate_surfaces(solver, kx_space, ky_space, band_index):
     conduction_E = conduction_E.reshape(len(ky_space), len(kx_space))
     valence_E = valence_E.reshape(len(ky_space), len(kx_space))
 
-    return KX, KY, conduction_E, valence_E
+    diff = conduction_E - valence_E
+    gap_size = min(map(min, diff))
+
+    print(f'minimal size of the gap is {gap_size}')
+
+    return KX, KY, conduction_E, valence_E, gap_size

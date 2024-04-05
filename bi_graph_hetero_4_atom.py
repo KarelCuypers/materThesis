@@ -7,61 +7,6 @@ from numpy import sqrt
 from functions.export_xyz import export_xyz
 from functions.create_lattice import create_lattice
 
-# the only way this works is repeating the lattice in both directions the reason is that it's impossible to get both
-# lattices to match up because you can only define one lattice when exporting for either the top or bottom lattice
-# when you define both lattices it only works when already duplicating in pybinding before exporting
-
-def strained_lattice(nearest_neighbors=1, onsite=(0, 0), strain=[0, 0], **kwargs):
-
-    lat = pb.Lattice(a1=[a * (1+strain[0]), 0],
-                     a2=[a/2 * (1+strain[0]), a/2 * sqrt(3)]
-                     )
-
-    t_nn = graphene.t_nn
-    # The next-nearest hoppings shift the Dirac point away from zero energy.
-    # This will push it back to zero for consistency with the first-nearest model.
-    onsite_offset = 0 if nearest_neighbors < 2 else 3 * kwargs.get('t_nn', t_nn)
-
-    lat.add_sublattices(
-        ('A', [0, a_cc/2], onsite[0] + onsite_offset),
-        ('B', [0,  -a_cc/2], onsite[1] + onsite_offset)
-    )
-
-    lat.register_hopping_energies({
-        't': kwargs.get('t', t),
-        't_nn': kwargs.get('t_nn', t_nn),
-        't_nnn': kwargs.get('t_nnn', 0.05),
-    })
-
-    lat.add_hoppings(
-        ([0,  0], 'A', 'B', 't'),
-        ([1, -1], 'A', 'B', 't'),
-        ([0, -1], 'A', 'B', 't')
-    )
-
-    if nearest_neighbors >= 2:
-        lat.add_hoppings(
-            ([0, -1], 'A', 'A', 't_nn'),
-            ([0, -1], 'B', 'B', 't_nn'),
-            ([1, -1], 'A', 'A', 't_nn'),
-            ([1, -1], 'B', 'B', 't_nn'),
-            ([1,  0], 'A', 'A', 't_nn'),
-            ([1,  0], 'B', 'B', 't_nn'),
-        )
-
-    if nearest_neighbors >= 3:
-        lat.add_hoppings(
-            [( 1, -2), 'A', 'B', 't_nnn'],
-            [( 1,  0), 'A', 'B', 't_nnn'],
-            [(-1,  0), 'A', 'B', 't_nnn'],
-        )
-
-    if nearest_neighbors >= 4:
-        raise RuntimeError("No more")
-
-    lat.min_neighbors = 2
-    return lat
-
 
 def add_one_atomic_layer(name, position, onsite_energy, a1, a2, shape):
     """Add a layer made from single sublattice
@@ -102,9 +47,27 @@ def add_one_atomic_layer(name, position, onsite_energy, a1, a2, shape):
     return define_layer
 
 
+def strained_lattice(onsite=(0, 0, 0, 0), strain=[0, 0]):
+    lat = pb.Lattice(a1=[a * (1+strain[0]), 0],
+                     a2=[0, 3*a_cc * (1+strain[1])])
 
-n_list = [70, 75, 80, 85, 90, 95, 100]
-m = 8
+    lat.add_sublattices(
+        # layer 1
+        ('A1', [0,  -a_cc/2,   0], onsite[0]),
+        ('B1', [0,   a_cc/2,   0], onsite[1]),
+    )
+
+    lat.add_aliases(
+        # Layer 1
+        ('A3', 'A1', [a / 2 * (1+strain[0]), -a_cc/2 + 3*a_cc/2, 0]),
+        ('B3', 'B1', [a / 2 * (1+strain[0]), a_cc/2 + 3*a_cc/2 , 0]),
+        # layer 2
+    )
+    return lat
+
+#n_list = [70, 75, 80, 85, 90, 95, 100]
+n_list = [10]
+m = 1
 
 for n in n_list:
 
@@ -128,11 +91,13 @@ for n in n_list:
     shape = pb.primitive(n, q)
 
     c0 = 0.335  # [nm] interlayer spacing
-    '''strained_model = pb.Model(
+    strained_model = pb.Model(
         lattice_gr,
         strained_shape,
         add_one_atomic_layer(name='A2', position=[0, -a_cc/2, -c0], onsite_energy=0, a1=a1, a2=a2, shape=shape),
         add_one_atomic_layer(name='B2', position=[0, a_cc/2, -c0], onsite_energy=0, a1=a1, a2=a2, shape=shape),
+        add_one_atomic_layer(name='A3', position=[a / 2, -a_cc / 2 + 3 * a_cc / 2, -c0], onsite_energy=0, a1=a1, a2=a2, shape=shape),
+        add_one_atomic_layer(name='B3', position=[a / 2, a_cc / 2 + 3 * a_cc / 2, -c0], onsite_energy=0, a1=a1, a2=a2, shape=shape),
     )
 
     xyz_name = f"hetro_{n}x{m}_coord"
@@ -149,11 +114,11 @@ for n in n_list:
     kpm = pb.kpm(new_model)
     dos = kpm.calc_dos(energy=np.linspace(-5, 5, 10000), broadening=0.01, num_random=4*64)
 
-    #pb.save(dos, f'ldos_{name}.pbz')'''
+    #pb.save(dos, f'ldos_{name}.pbz')
 
-    dos = pb.load(f'ldos_{name}.pbz')
+    #dos = pb.load(f'ldos_{name}.pbz')
 
-    dos.data = dos.data / max(dos.data)
+    #dos.data = dos.data / max(dos.data)
 
     hbar = 4.136 * 10 ** (-15)  # eV*s
     t_0 = 2.7  # eV

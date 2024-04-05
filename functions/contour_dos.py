@@ -43,8 +43,8 @@ def contour_dos(solver, kx_space, ky_space, band_index, n_bins=200):
     bands = c_bands + v_bands
     # all bands
     # bands = c_bands + v_bands + l_bands + h_bands
-    dos, e_edge = np.histogram(bands, bins=n_bins, density=False)
+    dos, e_edge = np.histogram(bands, bins=n_bins, density=True)
     dos_energy = [(e_edge[i] + e_edge[i+1])/2 for i in range(0, len(e_edge)-1)]
 
-    return dos, dos_energy
+    return dos, dos_energy, bands
 

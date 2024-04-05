@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def draw_contour(KX, KY, conduction_E, valence_E, conduction=True, surf=False, diff=False):
+def draw_contour(KX, KY, conduction_E, valence_E, conduction=True, surf=False, diff=False, cut_off=0.01):
 
     # 3D plot
     if surf:
@@ -21,7 +21,7 @@ def draw_contour(KX, KY, conduction_E, valence_E, conduction=True, surf=False, d
         arr = conduction_E - valence_E
         for i in range(arr.shape[0]):
             for j in range(arr.shape[1]):
-                if arr[i, j] > 0.01:
+                if arr[i, j] > cut_off:
                     arr[i, j] = np.NaN
 
         plt.contourf(KX, KY, arr, 50, cmap=cmap)

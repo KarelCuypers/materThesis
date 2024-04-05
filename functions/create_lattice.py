@@ -17,7 +17,7 @@ def create_lattice(name):
 
     # name for different sublattices, still every added atom to the model needs to have a different sublattice ID,
     # and this is where the sublattice info is lost
-    different_atoms = ['A1']
+    different_atoms = ['A']
 
     # Setting the onsite potentials, for now all are zero until there is something to add
     onsite_potential = np.zeros((positions.shape[0],))
@@ -55,6 +55,7 @@ def create_lattice(name):
     hoppings = calculate_hoppings(row, col, positions, cell, l1, l2)
     # make a full pb.Lattice with sites and hoppings
     complete_lattice = make_complete_lattice(lattice, row, col, cell, hoppings)
-    pb.save(complete_lattice, f'{save_path}lattice_{name}.pbz')
+    #pb.save(complete_lattice, f'{save_path}lattice_{name}.pbz')
 
     print('Lattice made')
+    return complete_lattice
