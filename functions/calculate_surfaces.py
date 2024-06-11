@@ -18,6 +18,7 @@ def calculate_surfaces(solver, kx_space, ky_space, band_index):
     for i, (kx, ky) in enumerate(zip(kx_list, ky_list)):
 
         eigenvalues = calculate_eigenvalues(kx, ky)
+        #print(eigenvalues)
 
         valence_E[i] = eigenvalues[valence_index]
         conduction_E[i] = eigenvalues[conduction_index]

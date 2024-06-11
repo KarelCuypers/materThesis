@@ -1,7 +1,7 @@
 from functions.calculate_hoppings import *
 
 
-def create_lattice(name):
+def create_lattice(name, nnn=False):
 
     #load_path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/xyz_files/'
     #save_path = 'C:/Users/Karel/Desktop/Master_Thesis/pythonProject/bilayer_homo_strain/lattice_files/'
@@ -23,9 +23,15 @@ def create_lattice(name):
     onsite_potential = np.zeros((positions.shape[0],))
 
     # min and max interlayer radius for neighbour search
-    d_min_intra, d_max_intra = 0.5 * a_cc, 1.4 * a_cc
+    #d_min_intra, d_max_intra = 0.5 * a_cc, 1.4 * a_cc
+    if nnn:
+        d_min_intra, d_max_intra = 0.5 * a_cc, 1.2 * np.sqrt(3) * a_cc
+    else:
+        d_min_intra, d_max_intra = 0.5 * a_cc, 1.2 * a_cc
+
     # min and max intralayer radius for neighbour search
-    d_min_inter, d_max_inter = 0.5 * c0, 1.4 * c0
+    #d_min_inter, d_max_inter = 0.5 * c0, 1.4 * c0
+    d_min_inter, d_max_inter = 0.5 * c0, 1.2 * c0
 
     # make a lattice without hopping
     lattice = make_lattice(l1, l2, atom_type, positions, different_atoms, onsite_potential)
@@ -53,9 +59,10 @@ def create_lattice(name):
 
     # calculate the hoppings based on the distance
     hoppings = calculate_hoppings(row, col, positions, cell, l1, l2)
+
     # make a full pb.Lattice with sites and hoppings
     complete_lattice = make_complete_lattice(lattice, row, col, cell, hoppings)
     #pb.save(complete_lattice, f'{save_path}lattice_{name}.pbz')
 
     print('Lattice made')
-    return complete_lattice
+    return complete_lattice, hoppings

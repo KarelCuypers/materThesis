@@ -1,11 +1,13 @@
 import pybinding as pb
 import numpy as np
+import matplotlib.ticker
 import matplotlib.pyplot as plt
 from pybinding.repository import graphene
 from math import pi, sqrt
 from functions.calculate_surfaces import calculate_surfaces
 from functions.draw_contour import draw_contour
 from functions.contour_dos import contour_dos
+from functions.four_atom_gating_term import four_atom_gating_term
 from functions.export_xyz import export_xyz
 
 
@@ -79,10 +81,14 @@ def uniform_strain(c_x, c_y):
 
 
 # shear strain is defined as the difference in angle in rad
-# strain = [-0.001, -0.002, -0.003]  # change view to 0.2
-# strain = [-0.004, -0.005, -0.006]  # change view to 0.3
+strain = [0.005, 0.01, 0.015, 0.02] #, -0.025, -0.03]
 
-strain = [-0.001, -0.002, -0.003, -0.004, -0.005, -0.006]
+cm = 1 / 2.54
+
+# strain = [-0.02]
+
+mode = 'pos'
+path = f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/shear_strain/{mode}_shear_strain'
 
 # define constants
 a = graphene.a_cc * sqrt(3)
@@ -90,7 +96,8 @@ a_cc = graphene.a_cc
 t = graphene.t
 a1, a2 = bilayer_shear().vectors[0], bilayer_shear().vectors[1]
 
-a_cc = graphene.a_cc
+temp = np.dot(a1, a2)/np.linalg.norm(a1)/np.linalg.norm(a2)
+starting_angle = np.arccos(np.clip(temp, -1, 1))
 
 Gamma = [0, 0]
 K1 = [-4*pi / (3*sqrt(3)*a_cc), 0]  # K in paper
@@ -99,86 +106,117 @@ K2 = [2*pi / (3*sqrt(3)*a_cc), 2*pi / (3*a_cc)]  # R in paper
 
 gap = []
 
-for angle in strain:
+for c in strain:
 
-    K1_strained = [-4 * pi / (3 * sqrt(3) * a_cc), -2*angle]
+    angle = c * starting_angle
 
     strained_model = pb.Model(
         bilayer_shear(gamma3=True, gamma4=True, angle=angle),  # effect with gamma3 or 4 significantly different
         pb.translational_symmetry(),
-        uniform_strain(0, 0)
+        uniform_strain(0, 0),
+        #four_atom_gating_term(2*10**-3),
+        pb.force_phase(),
+        pb.force_double_precision()
     )
+
+    #K1_strained_from_theory = [-4 * pi / (3 * sqrt(3) * a_cc), -2*angle]
+    l1, l2 = strained_model.lattice.vectors
+    points = strained_model.lattice.brillouin_zone()
+    K1_strained = points[0]
 
     position = strained_model.system.xyz
 
-    plt.figure()
+    '''plt.figure()
     strained_model.plot()
     strained_model.lattice.plot_vectors(position=[0, 0])  # nm
-    plt.show()
+    plt.show()'''
 
     solver = pb.solver.lapack(strained_model)
 
-    # dispersion/band structure 2D/3D
+    # dispersion/band structure 2D
 
-    '''bands = solver.calc_wavefunction(K1[0]-5, K1[0]+5, step=0.001).bands_disentangled
+    # berry curvature calculation
 
-    k_points = [bands.k_path[i][0] for i in range(0, len(bands.k_path))]
-    fig, ax = plt.subplots()
-    for e in range(0, bands.num_bands):
-        plt.scatter(k_points, bands.energy[:, e], s=1, color = 'g') # methode to make much nicer looking plot or plot bands
-        plt.ylim([-1, 1])
-        # independently
-    plt.scatter(K1[0], K1[1], s=1, color='r')
-    plt.show()'''
+    '''kx_max = K1_strained[0] + 0.2  # +0.2
+    ky_max = K1_strained[1] + 0.2
+    kx_min = K1_strained[0] - 0.2
+    ky_min = K1_strained[1] - 0.2
 
-    # K1 point 3D
-    kx_max = K1[0] + 0.2  # +0.2
-    ky_max = K1[1] + 0.2
-    kx_min = K1[0] - 0.2
-    ky_min = K1[1] - 0.2
+    origin = [K1_strained[0] - 0.2, K1_strained[1] - 0.2]
 
-    kx_space = np.linspace(kx_max, kx_min, 250)
-    ky_space = np.linspace(ky_max, ky_min, 250)
+    k_area = pb.make_area(*(0.4 * np.eye(2)), k_origin=origin, step=.05)
+    wavefunction_array = solver.calc_wavefunction_area(k_area)
+    berry_result = pb.berry.Berry(wavefunction_array, 2).calc_berry()
+
+    the_berry_phase = berry_result.data_area[:-1, :-1, 0]/10000
+    b_max = the_berry_phase.max()
+    b_min = the_berry_phase.min()
+
+    if abs(b_max) < abs(b_min):
+        val = b_max
+    else:
+        val = b_min
+
+    the_berry_phase_cut = np.flip(the_berry_phase)
+
+    kx_space = np.linspace(kx_max, kx_min, len(the_berry_phase[0, :]))
+    ky_space = np.linspace(ky_max, ky_min, len(the_berry_phase[:, 0]))
 
     KX, KY, conduction_E, valence_E, gap_size = calculate_surfaces(solver, kx_space, ky_space, 2)
-    gap.append(gap_size)
 
-    draw_contour(KX, KY, conduction_E, valence_E, True, diff=False)
-    plt.scatter(K1[0], K1[1], s=5, color='black')
-    plt.scatter(K1_strained[0], K1_strained[1], s=5, color='b')
-    plt.title(f'{angle} shear strain conduction')
-    plt.xlabel('k_x')
-    plt.ylabel('k_y')
-    plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/shear_{angle}_band.png')
-    plt.show()
+    arr = conduction_E - valence_E
+    for i in range(arr.shape[0]):
+        for j in range(arr.shape[1]):
+            if arr[i, j] > 0.01:
+                the_berry_phase_cut[i, j] = np.NaN
 
-    draw_contour(KX, KY, conduction_E, valence_E, True, diff=True)
-    plt.scatter(K1[0], K1[1], s=5, color='black')
-    plt.scatter(K1_strained[0], K1_strained[1], s=5, color='b')
-    plt.title(f'{angle} shear strain band diff')
-    plt.xlabel('k_x')
-    plt.ylabel('k_y')
-    plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/shear_{angle}_diff.png')
-    plt.show()
+    plt.figure(figsize=(10 * cm, 7.5 * cm), dpi=600)
+    mesh = plt.pcolormesh(berry_result.list_to_area(berry_result.k_path[:, 0]),
+                          berry_result.list_to_area(berry_result.k_path[:, 1]),
+                          the_berry_phase_cut, cmap='RdYlBu_r', rasterized=True
+                          )
+
+    clb = plt.colorbar(format=matplotlib.ticker.FormatStrFormatter('%.2f'))
+    clb.ax.set_title('$x10^{-2}\mu$m$^2$')
+    plt.xlim(kx_min, kx_max)
+    plt.ylim(ky_min, ky_max)
+    plt.title(f'{c * 100}%')
+    plt.scatter(K1_strained[0], K1_strained[1], s=1, color='black')
+    plt.annotate('$K_1\'$', [K1_strained[0], K1_strained[1]], c='black', xytext=(5, 5), textcoords='offset points')
+    plt.savefig(f'{path}/{mode}_{c}_berry_with_1meV_gating.png')
+    plt.show()'''
+
+    # plot K1 point 3D
+
+    '''draw_contour(KX, KY, conduction_E, valence_E, True, diff=True)
+    plt.scatter(K1_strained[0], K1_strained[1], s=5, color='black')
+    plt.annotate('$K_1\'$', [K1_strained[0], K1_strained[1]], c='black', xytext=(5, 5), textcoords='offset points')
+    plt.title(f'{c * 100}%')
+    plt.savefig(f'{path}/{mode}_{c}_diff_1meV_gating.png')
+    plt.show()'''
 
     # dos fig around the K1 point
 
-    kx_max = K1[0] + 0.3  # + 0.3
-    ky_max = K1[1] + 0.3
-    kx_min = K1[0] - 0.3
-    ky_min = K1[1] - 0.3
+    kx_max = K1_strained[0] + 0.5  # + 0.5%
+    ky_max = K1_strained[1] + 0.5
+    kx_min = K1_strained[0] - 0.5
+    ky_min = K1_strained[1] - 0.5
 
-    kx_space = np.linspace(kx_max, kx_min, 250)
-    ky_space = np.linspace(ky_max, ky_min, 250)
+    kx_space = np.linspace(kx_max, kx_min, 500)
+    ky_space = np.linspace(ky_max, ky_min, 500)
 
-    dos, dos_energy = contour_dos(solver, kx_space, ky_space, 2, 100)
-    plt.figure()
-    plt.plot(dos_energy, dos, color='b')
-    plt.title(f'{angle} shear strain dos')
-    plt.xlabel('dos')
-    plt.ylabel('Energy')
-    plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/shear_{angle}_dos.png')
-    plt.show()
+    # figure is correct just looks wierd because of the frame, should probably cut part away of x-axis in final version
+
+    dos, dos_energy = contour_dos(solver, kx_space, ky_space, 2, 500)
+    plt.figure(figsize=(10*cm, 7.5*cm), dpi=600)
+    plt.plot(dos_energy, dos, color='black')
+    plt.xlabel('Energy')
+    plt.ylabel('Number of states')
+    plt.xlim(-0.05, 0.05)
+    plt.subplots_adjust(left=0.2, bottom=0.18)
+    plt.title(f'{c * 100} %')
+    plt.savefig(f'{path}/{mode}_{c}_dos.png')
+    #plt.show()'''
 
     '''kx_max = K1[0]
     ky_max = K2[1]
@@ -191,17 +229,14 @@ for angle in strain:
     dos, dos_energy = contour_dos(solver, kx_space, ky_space, 2, 100)
     plt.figure()
     plt.plot(dos_energy, dos, color='b')
-    plt.title(f'{angle} shear strain rot dos')
-    plt.xlabel('dos')
-    plt.ylabel('Energy')
+    plt.title(f'{c[m] * 100}% {mode} strain dos')
+    plt.xlabel('Energy')
+    plt.ylabel('Number of states')
     plt.show()'''
 
-
-#export_xyz("shear_strain_xyz", position, a1, a2, np.array([0, 0, 1]), ['c'] * position.shape[0])
-
-plt.figure()
-plt.scatter(strain, gap)
-plt.title(f'gap caused by strain strain')
+'''plt.figure()
+plt.scatter([c[m] for c in strain_x], gap)
+plt.title(f'gap caused by {mode} strain')
 plt.xlabel('strain')
 plt.ylabel('gap')
-plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/{angle}_strain_gap.png')
+#plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/{mode}_strain_gap.png')'''

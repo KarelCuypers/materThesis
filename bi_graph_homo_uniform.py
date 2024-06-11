@@ -1,12 +1,22 @@
+import os
 import pybinding as pb
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker
 from pybinding.repository import graphene
 from math import pi, sqrt
-from functions.calculate_surfaces import calculate_surfaces
+from functions.create_lattice import create_lattice
 from functions.draw_contour import draw_contour
-from functions.contour_dos import contour_dos
 from functions.export_xyz import export_xyz
+from functions.calculate_surfaces import calculate_surfaces
+from functions.four_atom_gating_term import four_atom_gating_term
+from functions.contour_dos import contour_dos
+
+os.environ["OMP_NUM_THREADS"] = "1"  # export OMP_NUM_THREADS=1
+os.environ["OPENBLAS_NUM_THREADS"] = "1"  # export OPENBLAS_NUM_THREADS=1
+os.environ["MKL_NUM_THREADS"] = "1"  # export MKL_NUM_THREADS=1
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # export VECLIB_MAXIMUM_THREADS=1
+os.environ["NUMEXPR_NUM_THREADS"] = "1"  # export NUMEXPR_NUM_THREADS=1
 
 
 def strained_bilayer_lattice(gamma3=False, gamma4=False, onsite=(0, 0, 0, 0), strain=[0, 0], angle=0):
@@ -83,140 +93,178 @@ def hopping_modifier():
     return strained_hopping
 
 
-# apply strain
-# strain_x = [[0.005, 0], [0.01, 0], [0.015, 0], [0.02, 0], [0.025, 0], [0.03, 0]]
-# strain_x = [[0.03, 0], [0.035, 0], [0.04, 0], [0.045, 0], [0.05, 0]]
-strain_x = [[0.03, 0]]
-# strain_y = [[0, 0.005], [0, 0.01], [0, 0.015], [0, 0.02], [0, 0.025], [0, 0.03]]
-# strain_y = [[0, 0.03], [0, 0.035], [0, 0.04], [0, 0.045], [0, 0.05]]
-# strain_y = [[0, 0.025], [0, 0.03]]  # change frame to 0.3
-# c = 0
+if __name__ == '__main__':
+    matplotlib.rcParams.update({'font.size': 12})
+    cm = 1 / 2.54
 
-ang = 0
-angle = np.deg2rad(ang)  # y-direction is zigzag on rotate lattice
-#angle = 0  # y-direction is armchair
+    # apply strain
+    # strain_x = [[0.005, 0], [0.01, 0], [0.015, 0], [0.02, 0], [0.025, 0], [0.03, 0]]
+    # strain_x = [[0.0025, 0], [0.005, 0], [0.0075, 0], [0.01, 0]]
+    # strain_y = [[0, 0.025], [0, 0.03]]  # change frame to 0.3
+    # strain_y = [[0, 0.005], [0, 0.01], [0, 0.015], [0, 0.02]]
+    # strain_y = [[0, 0], [0, 0.0025], [0, 0.005], [0, 0.0075], [0, 0.01]]
+    strain_y = [[0, 0]]
 
-# define constants
-a = graphene.a_cc * sqrt(3)
-a_cc = graphene.a_cc
-t = graphene.t
+    ang = 0
+    angle = np.deg2rad(ang)  # y-direction is zigzag on rotate lattice
+    # angle = 0  # y-direction is armchair
 
-gap = []
+    # define constants
+    a = graphene.a_cc * sqrt(3)
+    a_cc = graphene.a_cc
+    t = graphene.t
 
-# dispersion/band structure 2D/3D
-rot = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    gap = []
 
-Gamma = np.matmul([0, 0], rot)
-K1 = np.matmul([-4 * pi / (3 * sqrt(3) * a_cc), 0], rot)  # K in paper
-M = np.matmul([0, 2 * pi / (3 * a_cc)], rot)  # S in paper
-K2 = np.matmul([2 * pi / (3 * sqrt(3) * a_cc), 2 * pi / (3 * a_cc)], rot)  # R in paper
+    # dispersion/band structure 2D/3D
+    rot = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
 
-for c in strain_x:
-    if c[0] == 0:
-        m = 1
-        mode = 'armchair'
-    else:
-        m = 0
-        mode = 'zigzag'
-        print('yes')
+    Gamma = np.matmul([0, 0], rot)
+    K1 = np.matmul([-4 * pi / (3 * sqrt(3) * a_cc), 0], rot)  # K in paper
+    M = np.matmul([0, 2 * pi / (3 * a_cc)], rot)  # S in paper
+    K2 = np.matmul([2 * pi / (3 * sqrt(3) * a_cc), 2 * pi / (3 * a_cc)], rot)  # R in paper
 
-    strained_model = pb.Model(
-        strained_bilayer_lattice(gamma3=True, gamma4=True, strain=c, angle=angle),  # effect with gamma3 or 4 significantly different
-        hopping_modifier(),
-        pb.translational_symmetry()
-    )
+    for c in strain_y:
+        if c[0] == 0:
+            tag = 1
+            mode = 'armchair'
+            tit = 'AC'
+            path = f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/homo_uniform_strain/{mode}'
+        else:
+            tag = 0
+            mode = 'zigzag'
+            tit = 'ZZ'
+            path = f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/homo_uniform_strain/{mode}'
 
-    a1, a2 = strained_model.lattice.vectors[0], strained_model.lattice.vectors[1]
-    position = strained_model.system.xyz
-    export_xyz("uniform_strain_xyz", position, a1, a2, np.array([0, 0, 1]), ['c'] * position.shape[0])
+        print(mode)
 
-    plt.figure()
-    strained_model.plot()
-    strained_model.lattice.plot_vectors(position=[0, 0])  # nm
-    plt.show()
+        strained_model = pb.Model(
+            strained_bilayer_lattice(gamma3=True, gamma4=True, strain=c, angle=angle),
+            # effect with gamma3 or 4 significantly different
+            hopping_modifier(),
+            pb.translational_symmetry(),
+            #four_atom_gating_term(2*10**-3),
+            pb.force_phase(),
+            pb.force_double_precision()
+        )
 
-    solver = pb.solver.lapack(strained_model)
+        a1, a2 = strained_model.lattice.vectors[0], strained_model.lattice.vectors[1]
+        position = strained_model.system.xyz
+        xyz_name = f"test_{mode}"
+        export_xyz(xyz_name, position, a1, a2, np.array([0, 0, 1]), ['A'] * position.shape[0])
 
-    bands = solver.calc_wavefunction(K1[0] - 5, K1[0] + 5, step=0.001).bands_disentangled
+        complete_lattice = create_lattice(xyz_name)
 
-    k_points = [bands.k_path[i][0] for i in range(0, len(bands.k_path))]
-    fig, ax = plt.subplots()
-    for e in range(0, bands.num_bands):
-        plt.scatter(k_points, bands.energy[:, e], s=1,
-                    color='g')  # methode to make much nicer looking plot or plot bands
-        plt.ylim([-1, 1])
-        # independently
-    plt.scatter(K1[0], K1[1], s=1, color='r')
-    plt.show()
+        solver = pb.solver.lapack(strained_model)
 
-    K1_strained = np.matmul([-4 * pi / (3 * sqrt(3) * a_cc) * (1 - c[0] / 2 - c[1] / 2), 0], rot)
+        '''model = pb.Model(complete_lattice,
+                         pb.translational_symmetry())
+        solver = pb.solver.lapack(model)'''
 
-    # K1 point 3D
-    kx_max = K1_strained[0] + 0.2  # +0.2
-    ky_max = K1_strained[1] + 0.2
-    kx_min = K1_strained[0] - 0.2
-    ky_min = K1_strained[1] - 0.2
+        K1_strained = np.matmul([-4 * pi / (3 * sqrt(3) * a_cc) * (1 - c[0] / 2 - c[1] / 2), 0], rot)
+        '''l1, l2 = strained_model.lattice.vectors
+        points = strained_model.lattice.brillouin_zone()
+        K1_strained = points[0]'''
 
-    kx_space = np.linspace(kx_max, kx_min, 250)
-    ky_space = np.linspace(ky_max, ky_min, 250)
+        j = 0.2
 
-    KX, KY, conduction_E, valence_E, gap_size = calculate_surfaces(solver, kx_space, ky_space, 2)
-    gap.append(gap_size)
+        kx_max = K1_strained[0] + j  # +0.2
+        ky_max = K1_strained[1] + j
+        kx_min = K1_strained[0] - j
+        ky_min = K1_strained[1] - j
 
-    draw_contour(KX, KY, conduction_E, valence_E, True, diff=False)
-    plt.scatter(K1[0], K1[1], s=5, color='black')
-    plt.scatter(K1_strained[0], K1_strained[1], s=5, color='b')
-    plt.title(f'{c[m]*100}% {mode} strain conduction')
-    #plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/{mode}_{c[m]}_band.png')
-    plt.show()
+        # berry curvature calculation
 
-    draw_contour(KX, KY, conduction_E, valence_E, True, diff=True)
-    plt.scatter(K1[0], K1[1], s=5, color='black')
-    plt.scatter(K1_strained[0], K1_strained[1], s=5, color='b')
-    plt.title(f'{c[m]*100}% {mode} strain band diff')
-    #plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/{mode}_{c[m]}_diff.png')
-    plt.show()
+        '''origin = [kx_min, ky_min]
 
-    # dos fig around the K1 point
+        k_area = pb.make_area(*(2*j * np.eye(2)), k_origin=origin, step=.05)
+        wavefunction_array = solver.calc_wavefunction_area(k_area)
+        berry_result = pb.berry.Berry(wavefunction_array, 2).calc_berry()
 
-    kx_max = K1_strained[0] + 2  # + 0.5%
-    ky_max = K1_strained[1] + 2
-    kx_min = K1_strained[0] - 2
-    ky_min = K1_strained[1] - 2
+        the_berry_phase = berry_result.data_area[:-1, :-1, 0]/10000  #
+        b_max = the_berry_phase.max()
+        b_min = the_berry_phase.min()
 
-    kx_space = np.linspace(kx_max, kx_min, 250)
-    ky_space = np.linspace(ky_max, ky_min, 250)
+        if abs(b_max) > abs(b_min):
+            val = abs(b_max)
+        else:
+            val = abs(b_min)
 
-    # figure is correct just looks wierd because of the frame, should probably cut part away of x axis in final version
+        the_berry_phase_cut = np.flip(the_berry_phase)
 
-    dos, dos_energy, test = contour_dos(solver, kx_space, ky_space, 2, 150)
-    plt.figure()
-    plt.plot(dos_energy, dos, color='b')
-    plt.title(f'{c[m] * 100}% {mode} strain dos')
-    plt.xlabel('Energy')
-    plt.ylabel('Number of states')
-    #plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/{mode}_{c[m]}_dos.png')
-    plt.show()
+        kx_space = np.linspace(kx_max, kx_min, len(the_berry_phase[0, :]))
+        ky_space = np.linspace(ky_max, ky_min, len(the_berry_phase[:, 0]))
 
-    '''kx_max = K1[0]
-    ky_max = K2[1]
-    kx_min = -K1[0]
-    ky_min = -K2[1]
+        KX, KY, conduction_E, valence_E, gap_size = calculate_surfaces(solver, kx_space, ky_space, 2)
 
-    kx_space = np.linspace(kx_max, kx_min, 250)
-    ky_space = np.linspace(ky_max, ky_min, 250)
+        arr = conduction_E - valence_E
+        for i in range(arr.shape[0]):
+            for j in range(arr.shape[1]):
+                if arr[i, j] > 0.01:
+                    the_berry_phase_cut[i, j] = np.NaN
 
-    dos, dos_energy = contour_dos(solver, kx_space, ky_space, 2, 100)
-    plt.figure()
-    plt.plot(dos_energy, dos, color='b')
-    plt.title(f'{c[m] * 100}% {mode} strain dos')
-    plt.xlabel('Energy')
-    plt.ylabel('Number of states')
-    plt.show()'''
+        plt.figure(figsize=(10 * cm, 7.5 * cm), dpi=600)
+        mesh = plt.pcolormesh(berry_result.list_to_area(berry_result.k_path[:, 0]),
+                       berry_result.list_to_area(berry_result.k_path[:, 1]),
+                       np.flip(the_berry_phase_cut), cmap='RdYlBu_r', rasterized=True)
+        clb = plt.colorbar(format=matplotlib.ticker.FormatStrFormatter('%.1f'))
+        # clb.ax.set_yticklabels(['-', '0', '+'])
+        clb.ax.set_title('$x10^{-2}\mu$m$^2$')
+        plt.xlim(kx_min, kx_max)
+        plt.ylim(ky_min, ky_max)
+        plt.title(f'{c[tag]*100}%')
+        plt.scatter(K1_strained[0], K1_strained[1], s=1, color='black')
+        plt.annotate('$K_1\'$', [K1_strained[0], K1_strained[1]], c='black', xytext=(5, 5), textcoords='offset points')
+        plt.savefig(f'{path}/new_{mode}_{c[tag]}_berry_with_gating_2meV.png')
 
-plt.figure()
-plt.scatter([c[m] for c in strain_x], gap)
-plt.title(f'gap caused by {mode} strain')
-plt.xlabel('strain')
-plt.ylabel('gap')
-#plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/{mode}_strain_gap.png')
+        #plt.savefig(f'{path}/just_sign_{mode}_{c[tag]}_berry_with_gating_2meV.png')'''
+
+        # plot K1 point 3D
+        # remove gap !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        # surface parallel test
+
+        kx_space = np.linspace(kx_max, kx_min, 250)
+        ky_space = np.linspace(ky_max, ky_min, 250)
+
+        from functions.calculate_surfaces_parallel import calculate_surface_parallel
+
+        #KX, KY, conduction_E, valence_E, gap_size = calculate_surface_parallel(kx_space, ky_space, 2)'''
+        KX, KY, conduction_E, valence_E, gap_size = calculate_surfaces(solver, kx_space, ky_space, 2)
+
+        draw_contour(KX, KY, conduction_E, valence_E, True, diff=True)
+        #plt.scatter(K1_strained[0], K1_strained[1], s=5, color='black')
+        #plt.annotate('$K_1\'$', [K1_strained[0], K1_strained[1]], c='black', xytext=(5, 5), textcoords='offset points')
+        plt.title(f'{c[tag] * 100}%')
+        #plt.title(f'Trigonal warping')
+        plt.savefig(f'{path}/{mode}_{c[tag]}_diff.png')
+
+        # dos fig around the K1 point
+
+        '''kx_max = K1_strained[0] + 0.3  # + 0.5%
+        ky_max = K1_strained[1] + 0.3
+        kx_min = K1_strained[0] - 0.3
+        ky_min = K1_strained[1] - 0.3
+
+        kx_space = np.linspace(kx_max, kx_min, 500)
+        ky_space = np.linspace(ky_max, ky_min, 500)
+
+        # figure is correct just looks wierd because of the frame, should probably cut part away of x-axis in final version
+
+        dos, dos_energy = contour_dos(solver, kx_space, ky_space, 2, 500)
+        plt.figure(figsize=(10*cm, 7.5*cm), dpi=600)
+        plt.plot(dos_energy, dos, color='black')
+        plt.xlabel('Energy')
+        plt.ylabel('Number of states')
+        plt.xlim(-0.05, 0.05)
+        plt.subplots_adjust(left=0.2, bottom=0.18)
+        plt.title(f'{c[tag] * 100}%')
+        plt.savefig(f'{path}/{mode}_{c[tag]}_dos_improved.png')
+        plt.show()'''
+
+    '''plt.figure(figsize=(6, 4), dpi=600)
+    plt.scatter([c[m]*100 for c in strain_y], np.array(gap)*1000)
+    plt.xlabel('strain %')
+    plt.ylabel('gap (meV)')
+    plt.subplots_adjust(left=0.15, bottom=0.18)
+    plt.savefig(f'C:/Users/Karel/Desktop/Master_Thesis/band_structure_plots/{mode}_strain_gap_higher.png')'''
